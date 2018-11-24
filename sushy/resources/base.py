@@ -94,6 +94,34 @@ class Field(object):
         return value
 
 
+class Header(object):
+    """Definitions for headers fetched from response headers."""
+
+    def __init__(self, name, default=None):
+        """Create a header definition
+
+        :param name: Name of header.
+        :param default: The default value to use when header is absent.
+        """
+        if not name:
+            raise ValueError("Name cannot be empty")
+        elif not isinstance(name, six.string_types):
+            raise TypeError("Name must be a string")
+
+        self._name = name
+        self._default = default
+
+    def _load(self, headers):
+        """Load this header from response headers.
+
+                :param headers: Response headers.
+                """
+        if self._name in headers:
+            return headers[self._name]
+        else:
+            return self._default
+
+
 def _collect_fields(resource):
     """Collect fields from the JSON.
 
@@ -104,6 +132,18 @@ def _collect_fields(resource):
         field = getattr(resource.__class__, attr)
         if isinstance(field, Field):
             yield (attr, field)
+
+
+def _collect_headers(resource):
+    """Collect header attributes from Resource.
+
+    :param resource: ResourceBase instance.
+    :returns: generator of tuples (key, header)
+    """
+    for attr in dir(resource.__class__):
+        header = getattr(resource.__class__, attr)
+        if isinstance(header, Header):
+            yield (attr, header)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -263,6 +303,7 @@ class ResourceBase(object):
         self._conn = connector
         self._path = path
         self._json = None
+        self._headers = None
         self.redfish_version = redfish_version
         # Note(deray): Indicates if the resource holds stale data or not.
         # Starting off with True and eventually gets set to False when
@@ -276,6 +317,9 @@ class ResourceBase(object):
         for attr, field in _collect_fields(self):
             # Hide the Field object behind the real value
             setattr(self, attr, field._load(self.json, self))
+
+        for attr, header in _collect_headers(self):
+            setattr(self, attr, header._load(self.headers))
 
     def refresh(self, force=True):
         """Refresh the resource
@@ -299,10 +343,15 @@ class ResourceBase(object):
         if not self._is_stale and not force:
             return
 
-        self._json = self._conn.get(path=self._path).json()
-        LOG.debug('Received representation of %(type)s %(path)s: %(json)s',
+        resp = self._conn.get(path=self._path)
+        self._json = resp.json()
+        self._headers = resp.headers
+        LOG.debug('Received representation of %(type)s %(path)s: %(json)s, '
+                  'headers: %(headers)s',
                   {'type': self.__class__.__name__,
-                   'path': self._path, 'json': self._json})
+                   'path': self._path,
+                   'json': self._json,
+                   'headers': self._headers})
         self._parse_attributes()
         self._do_refresh(force)
 
@@ -354,6 +403,10 @@ class ResourceBase(object):
     @property
     def path(self):
         return self._path
+
+    @property
+    def headers(self):
+        return self._headers
 
 
 @six.add_metaclass(abc.ABCMeta)

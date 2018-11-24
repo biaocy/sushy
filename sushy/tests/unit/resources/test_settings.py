@@ -60,4 +60,5 @@ class SettingsFieldTestCase(base.TestCase):
         instance.commit(conn, {'Attributes': {'key': 'value'}})
         conn.patch.assert_called_once_with(
             '/redfish/v1/Systems/437XR1138R2/BIOS/Settings',
-            data={'Attributes': {'key': 'value'}})
+            data={'Attributes': {'key': 'value'}},
+            headers={'If-Match': instance._etag})

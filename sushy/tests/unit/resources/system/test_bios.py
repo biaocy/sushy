@@ -63,7 +63,8 @@ class BiosTestCase(base.TestCase):
         self.sys_bios.set_attribute('ProcTurboMode', 'Disabled')
         self.sys_bios._conn.patch.assert_called_once_with(
             '/redfish/v1/Systems/437XR1138R2/BIOS/Settings',
-            data={'Attributes': {'ProcTurboMode': 'Disabled'}})
+            data={'Attributes': {'ProcTurboMode': 'Disabled'}},
+            headers={'If-Match': self.sys_bios._settings._etag})
 
     def test_set_attribute_on_refresh(self):
         self.conn.get.reset_mock()
@@ -87,7 +88,8 @@ class BiosTestCase(base.TestCase):
         self.sys_bios._conn.patch.assert_called_once_with(
             '/redfish/v1/Systems/437XR1138R2/BIOS/Settings',
             data={'Attributes': {'ProcTurboMode': 'Disabled',
-                                 'UsbControl': 'UsbDisabled'}})
+                                 'UsbControl': 'UsbDisabled'}},
+            headers={'If-Match': self.sys_bios._settings._etag})
 
     def test_set_attributes_on_refresh(self):
         self.conn.get.reset_mock()

@@ -121,6 +121,14 @@ class System(base.ResourceBase):
     memory_summary = MemorySummaryField('MemorySummary')
     """The summary info of memory of the system in general detail"""
 
+    # The etag fetch from response headers directly,
+    # so it's value maybe different from @Redfish.Settings Etag field.
+    # According to Redfish Spec, it't format is 'W/"<string>"',
+    # for example: W/"3d607e36". The etag will be use when the resource
+    # performing a patch request
+    etag = base.Header('ETag')
+    """The etag header fetch from response"""
+
     _actions = ActionsField('Actions', required=True)
 
     def __init__(self, connector, identity, redfish_version=None):
@@ -236,9 +244,12 @@ class System(base.ResourceBase):
             data['Boot']['BootSourceOverrideMode'] = (
                 sys_maps.BOOT_SOURCE_MODE_MAP_REV[mode])
 
+        headers = dict()
+        if self.etag:
+            headers['If-Match'] = self.etag
         # TODO(lucasagomes): Check the return code and response body ?
         #                    Probably we should call refresh() as well.
-        self._conn.patch(self.path, data=data)
+        self._conn.patch(self.path, data=data, headers=headers)
 
     # TODO(lucasagomes): All system have a Manager and Chassis object,
     # include a get_manager() and get_chassis() once we have an abstraction

@@ -37,6 +37,8 @@ class SystemTestCase(base.TestCase):
         with open('sushy/tests/unit/json_samples/system.json') as f:
             self.conn.get.return_value.json.return_value = json.load(f)
 
+        self.conn.get.return_value.headers = {}
+
         self.sys_inst = system.System(
             self.conn, '/redfish/v1/Systems/437XR1138R2',
             redfish_version='1.0.2')
@@ -201,7 +203,21 @@ class SystemTestCase(base.TestCase):
             '/redfish/v1/Systems/437XR1138R2',
             data={'Boot': {'BootSourceOverrideEnabled': 'Continuous',
                            'BootSourceOverrideTarget': 'Pxe',
-                           'BootSourceOverrideMode': 'UEFI'}})
+                           'BootSourceOverrideMode': 'UEFI'}},
+            headers=self.sys_inst.headers)
+
+    def test_set_system_boot_source_with_etag(self):
+        self.sys_inst.etag = 'W/"asdfa"'
+        self.sys_inst.set_system_boot_source(
+            sushy.BOOT_SOURCE_TARGET_PXE,
+            enabled=sushy.BOOT_SOURCE_ENABLED_CONTINUOUS,
+            mode=sushy.BOOT_SOURCE_MODE_UEFI)
+        self.sys_inst._conn.patch.assert_called_once_with(
+            '/redfish/v1/Systems/437XR1138R2',
+            data={'Boot': {'BootSourceOverrideEnabled': 'Continuous',
+                           'BootSourceOverrideTarget': 'Pxe',
+                           'BootSourceOverrideMode': 'UEFI'}},
+            headers={'If-Match': self.sys_inst.etag})
 
     def test_set_system_boot_source_no_mode_specified(self):
         self.sys_inst.set_system_boot_source(
@@ -210,7 +226,8 @@ class SystemTestCase(base.TestCase):
         self.sys_inst._conn.patch.assert_called_once_with(
             '/redfish/v1/Systems/437XR1138R2',
             data={'Boot': {'BootSourceOverrideEnabled': 'Once',
-                           'BootSourceOverrideTarget': 'Hdd'}})
+                           'BootSourceOverrideTarget': 'Hdd'}},
+            headers=self.sys_inst.headers)
 
     def test_set_system_boot_source_invalid_target(self):
         self.assertRaises(exceptions.InvalidParameterValueError,

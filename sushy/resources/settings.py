@@ -90,8 +90,10 @@ class SettingsField(base.CompositeField):
         :param value: Value representing JSON whose structure is specific
             to each resource and the caller must format it correctly
         """
-
-        connector.patch(self.resource_uri, data=value)
+        headers = dict()
+        if self._etag:
+            headers['If-Match'] = self._etag
+        connector.patch(self.resource_uri, data=value, headers=headers)
 
     @property
     def resource_uri(self):
